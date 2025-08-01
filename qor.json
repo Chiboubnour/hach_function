@@ -1,0 +1,24 @@
+{
+    "containers": [
+      {
+        "name": "krnl_hash_dna",
+        "meet_system_timing": "true",
+        "accelerators": [
+          {
+            "name": "krnl_hash_dna",
+            "check_timing": "true",
+            "PipelineType": "none",
+            "check_latency": "false",
+            "check_warning": "false",
+            "loops": [
+              {
+                "name": "generate_smers.loop1",
+                "PipelineII": "1"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+  
