@@ -1,0 +1,93 @@
+{
+    "name": "Hash DNA Kernel Example",
+    "description": [
+        "Example of a kernel to compute DNA k-mer hashes using HLS dataflow and XRT."
+    ],
+    "flow": "vitis",
+    "keywords": [
+        "xrt::device",
+        "load_xclbin",
+        "xrt::bo",
+        "xrt::kernel",
+        "hls::stream",
+        "dataflow",
+        "DNA",
+        "hash"
+    ],
+    "key_concepts": [
+        "XRT Native API",
+        "HLS Dataflow",
+        "DNA k-mer hashing"
+    ],
+    "platform_blocklist": [
+        "nodma"
+    ],
+    "os": [
+        "Linux"
+    ],
+    "runtime": [
+        "OpenCL"
+    ],
+    "host": {
+        "host_exe": "hash_dna",
+        "compiler": {
+            "sources": [
+                "REPO_DIR/common/includes/cmdparser/cmdlineparser.cpp",
+                "REPO_DIR/common/includes/logger/logger.cpp",
+                "./src/host.cpp"
+            ],
+            "includepaths": [
+                "REPO_DIR/common/includes/cmdparser",
+                "REPO_DIR/common/includes/logger"
+            ]
+        },
+        "linker": {
+            "libraries": [
+                "uuid",
+                "xrt_coreutil"
+            ]
+        }
+    },
+    "containers": [
+        {
+            "accelerators": [
+                {
+                    "name": "krnl_hash_dna",
+                    "location": "src/krnl_hash.cpp"
+                }
+            ],
+            "name": "krnl_hash_dna"
+        }
+    ],
+    "launch": [
+        {
+            "cmd_args": "-x BUILD/krnl_hash_dna.xclbin",
+            "name": "generic launch for all flows"
+        }
+    ],
+    "contributors": [
+        {
+            "url": "http://www.xilinx.com",
+            "group": "Xilinx"
+        }
+    ],
+    "testinfo": {
+        "disable": false,
+        "profile": "no",
+        "jobs": [
+            {
+                "index": 0,
+                "dependency": [],
+                "env": "",
+                "cmd": "",
+                "max_memory_MB": 32768,
+                "max_time_min": 300
+            }
+        ],
+        "targets": [
+            "vitis_hw_emu",
+            "vitis_hw"
+        ],
+        "category": "canary"
+    }
+}
