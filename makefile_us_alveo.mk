@@ -7,6 +7,7 @@ KERNEL := krnl_hash_dna
 # Source files
 HOST_SRC := src/host.cpp
 KERNEL_SRC := src/krnl_hash.cpp
+CONFIG_FILE := krnl_hash.cfg
 
 # Build targets
 BUILD_DIR := build_dir.$(TARGET).$(PLATFORM)
@@ -28,7 +29,7 @@ all: build
 $(XO_FILE): $(KERNEL_SRC)
 	$(VPP) -c -t $(TARGET) --platform $(PLATFORM) \
 		--save-temps -g \
-		--config $(KERNEL).cfg \
+		--config $(CONFIG_FILE) \
 		-k $(KERNEL) \
 		--temp_dir $(BUILD_DIR) \
 		--output $(XO_FILE) $<
@@ -37,7 +38,7 @@ $(XO_FILE): $(KERNEL_SRC)
 $(XCLBIN_FILE): $(XO_FILE)
 	$(VPP) -l -t $(TARGET) --platform $(PLATFORM) \
 		--save-temps -g \
-		--config $(KERNEL).cfg \
+		--config $(CONFIG_FILE) \
 		--temp_dir $(BUILD_DIR) \
 		--output $(XCLBIN_FILE) $(XO_FILE)
 
