@@ -1,21 +1,21 @@
 # Platform target (U280)
-XSA := xilinx_u280_gen3x16_xdma_1_202211_1
+PLATFORM ?= xilinx_u280_gen3x16_xdma_1_202211_1
 
 # Kernel name
 KERNEL := krnl_hash_dna
 
 # Source files
-HOST_SRC := host.cpp
-KERNEL_SRC := $(KERNEL).cpp
+HOST_SRC := src/host.cpp
+KERNEL_SRC := src/krnl_hash.cpp
 
 # Build targets
-BUILD_DIR := build_dir.$(TARGET).$(XSA)
+BUILD_DIR := build_dir.$(TARGET).$(PLATFORM)
 XO_FILE := $(BUILD_DIR)/$(KERNEL).xo
 XCLBIN_FILE := $(BUILD_DIR)/$(KERNEL).xclbin
 
 # Compiler options
 CXXFLAGS := -Wall -O2 -g -std=c++17
-LDFLAGS := -lxilinxopencl -pthread -lrt
+LDFLAGS := -lxrt_coreutil -luuid -lpthread
 
 # Xilinx tools
 VPP := v++
@@ -26,7 +26,7 @@ all: build
 
 # Step 1: Compile kernel to XO
 $(XO_FILE): $(KERNEL_SRC)
-	$(VPP) -c -t $(TARGET) --platform $(XSA) \
+	$(VPP) -c -t $(TARGET) --platform $(PLATFORM) \
 		--save-temps -g \
 		--config $(KERNEL).cfg \
 		-k $(KERNEL) \
@@ -35,7 +35,7 @@ $(XO_FILE): $(KERNEL_SRC)
 
 # Step 2: Link XO to XCLBIN
 $(XCLBIN_FILE): $(XO_FILE)
-	$(VPP) -l -t $(TARGET) --platform $(XSA) \
+	$(VPP) -l -t $(TARGET) --platform $(PLATFORM) \
 		--save-temps -g \
 		--config $(KERNEL).cfg \
 		--temp_dir $(BUILD_DIR) \
