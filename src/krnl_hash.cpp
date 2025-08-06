@@ -123,8 +123,6 @@ void krnl_hash_dna(
 ) {
     #pragma HLS INTERFACE m_axi port=sequence offset=slave bundle=gmem0
     #pragma HLS INTERFACE m_axi port=tab_hash offset=slave bundle=gmem1
-    #pragma HLS INTERFACE s_axilite port=sequence
-    #pragma HLS INTERFACE s_axilite port=tab_hash
     #pragma HLS INTERFACE s_axilite port=n
     #pragma HLS INTERFACE s_axilite port=return
     #pragma HLS DATAFLOW
