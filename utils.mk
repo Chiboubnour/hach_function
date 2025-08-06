@@ -27,7 +27,7 @@ MK_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 
 # Adapt this line based on your folder structure:
 # For example, if your example is in host_xrt/hash_dna_xrt, adjust accordingly
-COMMON_REPO ?= $(shell bash -c 'export MK_PATH=$(MK_PATH); echo $${MK_PATH%host_xrt/hach_function/*}')
+COMMON_REPO ?= $(shell bash -c 'export MK_PATH=$(MK_PATH); echo $${MK_PATH%hach_function-main/*}')
 
 PWD = $(shell readlink -f .)
 XF_PROJ_ROOT = $(shell readlink -f $(COMMON_REPO))
