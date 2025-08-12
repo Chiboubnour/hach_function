@@ -1,23 +1,18 @@
-#include "cmdlineparser.h"
 #include <iostream>
 #include <cstring>
 #include <vector>
+#include <chrono>
+#include <algorithm>
+#include <stdint.h>
+#include <stdlib.h>
 
 // XRT includes
 #include "xrt/xrt_bo.h"
 #include "xrt/xrt_device.h"
 #include "xrt/xrt_kernel.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <chrono>
-#include <algorithm>
-
-
-
 /*
 CASE: Data flow for krnl_hach kernel on FPGA with HBM banks
-
 +-----------+                   +-----------+
 |           |                   |           |
 |   HBM0    | ---- Sequence --->|           |
@@ -47,32 +42,33 @@ CASE: Data flow for krnl_hach kernel on FPGA with HBM banks
 
 */
 
+// Fonction qui lance le kernel
 double run_krnl(xrtDeviceHandle device, xrt::kernel& krnl, int bank_assign[2], unsigned int n) {
-    size_t input_size_bytes = ((n + 7) / 8) * sizeof(uint64_t); // packed sequence size
-    size_t n_smers = n - 27; // S=28, so n_smers = n-(S-1)
+    size_t input_size_bytes = ((n + 7) / 8) * sizeof(uint64_t); // taille séquence encodée
+    size_t n_smers = n - 27; // S=28, donc nombre de s-mers = n-(S-1)
     size_t output_size_bytes = n_smers * sizeof(uint64_t);
 
-    std::cout << "Allocating buffers in global memory\n";
+    std::cout << "Allocation des buffers en mémoire globale...\n";
     auto bo_seq = xrt::bo(device, input_size_bytes, bank_assign[0]);
     auto bo_hash = xrt::bo(device, output_size_bytes, bank_assign[1]);
 
     auto seq_map = bo_seq.map<uint64_t*>();
     auto hash_map = bo_hash.map<uint64_t*>();
 
-    // Initialize input buffer with test data - example: fill with random or real packed sequence
-    std::cout << "Initializing input sequence buffer\n";
+    // Initialisation buffer d'entrée avec un exemple de séquence
+    std::cout << "Initialisation du buffer de séquence...\n";
     for (size_t i = 0; i < input_size_bytes / sizeof(uint64_t); i++) {
-        seq_map[i] = 0x4141414141414141ULL; // example: all 'A' (ASCII 0x41) packed repeatedly
+        seq_map[i] = 0x4141414141414141ULL; // 'A' ASCII répété
     }
-    // Zero output buffer
+    // Mise à zéro du buffer de sortie
     std::memset(hash_map, 0, output_size_bytes);
 
-    std::cout << "Sync input buffer to device\n";
+    std::cout << "Synchronisation buffer entrée vers device...\n";
     bo_seq.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
     std::chrono::duration<double> kernel_time(0);
 
-    std::cout << "Launching kernel\n";
+    std::cout << "Lancement du kernel...\n";
     auto kernel_start = std::chrono::high_resolution_clock::now();
 
     auto run = krnl(bo_seq, n, bo_hash);
@@ -81,11 +77,10 @@ double run_krnl(xrtDeviceHandle device, xrt::kernel& krnl, int bank_assign[2], u
     auto kernel_end = std::chrono::high_resolution_clock::now();
     kernel_time = kernel_end - kernel_start;
 
-    std::cout << "Sync output buffer from device\n";
+    std::cout << "Synchronisation buffer sortie depuis device...\n";
     bo_hash.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
 
-    // Optional: print first few hashes for verification
-    std::cout << "First 10 hashes output:\n";
+    std::cout << "Premiers 10 hash générés:\n";
     for (size_t i = 0; i < std::min<size_t>(10, n_smers); i++) {
         std::cout << std::hex << hash_map[i] << std::dec << std::endl;
     }
@@ -94,46 +89,38 @@ double run_krnl(xrtDeviceHandle device, xrt::kernel& krnl, int bank_assign[2], u
 }
 
 int main(int argc, char* argv[]) {
-    // Command Line Parser
-    sda::utils::CmdLineParser parser;
-
-    parser.addSwitch("--xclbin_file", "-x", "input binary file string", "");
-    parser.addSwitch("--device_id", "-d", "device index", "0");
-    parser.parse(argc, argv);
-
-    std::string binaryFile = parser.value("xclbin_file");
-    int device_index = stoi(parser.value("device_id"));
-
     if (argc < 3) {
-        parser.printHelp();
+        std::cout << "Usage: " << argv[0] << " <xclbin_file> <device_id>\n";
         return EXIT_FAILURE;
     }
 
-    std::cout << "Open device " << device_index << std::endl;
+    std::string binaryFile = argv[1];
+    int device_index = std::stoi(argv[2]);
+
+    std::cout << "Ouverture du device " << device_index << std::endl;
     auto device = xrt::device(device_index);
 
-    std::cout << "Load xclbin " << binaryFile << std::endl;
+    std::cout << "Chargement du fichier xclbin : " << binaryFile << std::endl;
     auto uuid = device.load_xclbin(binaryFile);
 
-    auto krnl = xrt::kernel(device, uuid, "hach_sequence");
+    // Le nom du kernel doit correspondre à celui défini dans le kernel (ici krnl_hach)
+    auto krnl = xrt::kernel(device, uuid, "krnl_hach");
 
-    // Test sequence length (example)
-    const unsigned int n = 1024;  // You can change this to your real sequence length
+    const unsigned int n = 1024;  // taille de la séquence test (nombre de bases)
 
-    // Bank assignments: you can assign your buffers to HBM banks 0 and 1 for example
-    int bank_assign[2] = {0, 1};
+    int bank_assign[2] = {0, 1};  // banque mémoire pour entrée et sortie
 
     double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, n);
 
-    size_t n_smers = n - 27; // S=28
-    double total_bytes = ( ((n + 7)/8) + n_smers ) * sizeof(uint64_t);
+    size_t n_smers = n - 27;
+    double total_bytes = (((n + 7)/8) + n_smers) * sizeof(uint64_t);
 
-    double throughput = total_bytes / kernel_time_in_sec / 1e9; // GB/s
+    double throughput = total_bytes / kernel_time_in_sec / 1e9; // en GB/s
 
-    std::cout << "Kernel execution time: " << kernel_time_in_sec << " sec\n";
-    std::cout << "Throughput: " << throughput << " GB/s\n";
+    std::cout << "Temps d'exécution du kernel : " << kernel_time_in_sec << " s\n";
+    std::cout << "Débit : " << throughput << " GB/s\n";
 
-    std::cout << "Test completed successfully." << std::endl;
+    std::cout << "Test terminé avec succès." << std::endl;
 
     return 0;
 }
