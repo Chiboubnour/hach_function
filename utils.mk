@@ -5,14 +5,14 @@
 
 PROFILE := no
 
-# Generates profile summary report
+#Generates profile summary report
 ifeq ($(PROFILE), yes)
 VPP_LDFLAGS += --profile.data all:all:all
 endif
 
 DEBUG := no
 
-# Generates debug summary report
+#Generates debug summary report
 ifeq ($(DEBUG), yes)
 VPP_LDFLAGS += --dk list_ports
 endif
@@ -24,19 +24,14 @@ endif
 ############################## Setting up Project Variables ##############################
 # Points to top directory of Git repository
 MK_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-
-# Adapt this line based on your folder structure:
-# For example, if your example is in host_xrt/hash_dna_xrt, adjust accordingly
-COMMON_REPO ?= $(shell bash -c 'export MK_PATH=$(MK_PATH); echo $${MK_PATH%hach_function-main/*}')
-
+COMMON_REPO ?= $(shell bash -c 'export MK_PATH=$(MK_PATH); echo $${MK_PATH%host_xrt/hbm_simple_xrt/*}')
 PWD = $(shell readlink -f .)
 XF_PROJ_ROOT = $(shell readlink -f $(COMMON_REPO))
 
-# Check OS and setting env for xrt c++ api
+#Check OS and setting env for xrt c++ api
 GXX_EXTRA_FLAGS := 
-OSDIST = $(shell lsb_release -i | awk -F: '{print tolower($$2)}' | tr -d ' \t')
-OSREL = $(shell lsb_release -r | awk -F: '{print tolower($$2)}' | tr -d ' \t')
-
+OSDIST = $(shell lsb_release -i |awk -F: '{print tolower($$2)}' | tr -d ' 	' )
+OSREL = $(shell lsb_release -r |awk -F: '{print tolower($$2)}' |tr -d ' 	')
 # for centos and redhat
 ifneq ($(findstring centos,$(OSDIST)),)
 ifeq (7,$(shell echo $(OSREL) | awk -F. '{print tolower($$1)}' ))
@@ -47,8 +42,7 @@ ifeq (7,$(shell echo $(OSREL) | awk -F. '{print tolower($$1)}' ))
 GXX_EXTRA_FLAGS := -D_GLIBCXX_USE_CXX11_ABI=0
 endif
 endif
-
-# Setting PLATFORM
+#Setting PLATFORM 
 ifeq ($(PLATFORM),)
 ifneq ($(DEVICE),)
 $(warning WARNING: DEVICE is deprecated in make command. Please use PLATFORM instead)
@@ -56,13 +50,13 @@ PLATFORM := $(DEVICE)
 endif
 endif
 
-# Checks for XILINX_VITIS
+#Checks for XILINX_VITIS
 check-vitis:
 ifndef XILINX_VITIS
 	$(error XILINX_VITIS variable is not set, please set correctly using "source <Vitis_install_path>/Vitis/<Version>/settings64.sh" and rerun)
 endif
 
-# Checks for XILINX_XRT
+#Checks for XILINX_XRT
 check-xrt:
 ifndef XILINX_XRT
 	$(error XILINX_XRT variable is not set, please set correctly using "source /opt/xilinx/xrt/setup.sh" and rerun)
@@ -95,8 +89,8 @@ ifndef PLATFORM
 	$(error PLATFORM not set. Please set the PLATFORM properly and rerun. Run "make help" for more details.)
 endif
 
-# device2xsa - create a filesystem friendly name from device name
-# $(1) - full name of device
+#   device2xsa - create a filesystem friendly name from device name
+#   $(1) - full name of device
 device2xsa = $(strip $(patsubst %.xpfm, % , $(shell basename $(PLATFORM))))
 
 XSA := 
@@ -118,8 +112,3 @@ RM = rm -f
 RMDIR = rm -rf
 
 ECHO:= @echo
-
-docs: README.rst
-
-README.rst: description.json
-	$(XF_PROJ_ROOT)/common/utility/readme_gen/readme_gen.py description.json
