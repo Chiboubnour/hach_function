@@ -1,26 +1,39 @@
 {
-    "name": "Hash DNA Kernel Example",
+    "name": "HBM DNA Sequence Hash (XRT Native API)",
     "description": [
-        "Example of a kernel to compute DNA k-mer hashes using HLS dataflow and XRT."
+        "This example demonstrates how to use an HLS kernel with High Bandwidth Memory (HBM) on the Alveo U280 to compute hash values for DNA sequence fragments. The kernel is implemented in C++ (Vitis HLS) and accessed via the XRT Native API to achieve high throughput."
     ],
     "flow": "vitis",
     "keywords": [
-        "xrt::device",
-        "load_xclbin",
-        "xrt::bo",
-        "xrt::kernel",
-        "hls::stream",
-        "dataflow",
+        "HBM",
         "DNA",
-        "hash"
+        "hash computation",
+        "bioinformatics"
     ],
     "key_concepts": [
-        "XRT Native API",
-        "HLS Dataflow",
-        "DNA k-mer hashing"
+        "High Bandwidth Memory",
+        "Multiple HBM Banks",
+        "Dataflow",
+        "Streaming"
     ],
     "platform_blocklist": [
-        "nodma"
+        "u25_",
+        "u30",
+        "u200",
+        "zc",
+        "vck",
+        "u250",
+        "aws",
+        "samsung",
+        "u2_",
+        "x3522pv",
+        "nodma",
+        "v70"
+    ],
+    "platform_type": "pcie",
+    "targets": [
+        "hw",
+        "hw_emu"
     ],
     "os": [
         "Linux"
@@ -29,11 +42,9 @@
         "OpenCL"
     ],
     "host": {
-        "host_exe": "hash_dna",
+        "host_exe": "hach_sequence_host",
         "compiler": {
             "sources": [
-                "REPO_DIR/common/includes/cmdparser/cmdlineparser.cpp",
-                "REPO_DIR/common/includes/logger/logger.cpp",
                 "./src/host.cpp"
             ],
             "includepaths": [
@@ -52,16 +63,17 @@
         {
             "accelerators": [
                 {
-                    "name": "krnl_hash_dna",
-                    "location": "src/krnl_hash.cpp"
+                    "name": "hach_sequence",
+                    "location": "src/krnl_hach.cpp"
                 }
             ],
-            "name": "krnl_hash_dna"
+            "name": "hach_sequence",
+            "ldclflags": "--config PROJECT/krnl_hach.cfg"
         }
     ],
     "launch": [
         {
-            "cmd_args": "-x BUILD/krnl_hash_dna.xclbin",
+            "cmd_args": "-x BUILD/hach_sequence.xclbin",
             "name": "generic launch for all flows"
         }
     ],
@@ -73,7 +85,6 @@
     ],
     "testinfo": {
         "disable": false,
-        "profile": "no",
         "jobs": [
             {
                 "index": 0,
