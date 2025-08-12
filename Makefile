@@ -1,56 +1,69 @@
 SHELL := /bin/bash
-#
-# Copyright 2019-2021 Xilinx, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# makefile-generator v1.0.3
-#
-# Points to top directory of Git repository
 MK_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-COMMON_REPO ?= $(shell bash -c 'export MK_PATH=$(MK_PATH); echo $${MK_PATH%host_xrt/hbm_simple_xrt/*}')
-PWD = $(shell readlink -f .)
-XF_PROJ_ROOT = $(shell readlink -f $(COMMON_REPO))
+PWD      = $(shell readlink -f .)
 
-
-########################## Checking if PLATFORM in allowlist #######################
-PLATFORM_BLOCKLIST += u25_ u30 u200 zc vck u250 aws-vu9p-f1 samsung x3522pv nodma v70 
-ifneq ($(TARGET),$(findstring $(TARGET), hw hw_emu))
-$(error Application supports only hw hw_emu TARGET. Please use the target for running the application)
-endif
-PLATFORM ?= xilinx_u280_gen3x16_xdma_1_202211_1
-
+######################## Project Variables ########################
+TARGET    ?= hw
+PLATFORM  ?= xilinx_u280_gen3x16_xdma_1_202211_1
 HOST_ARCH := x86
 
-include makefile_us_alveo.mk
+# Host source and executable
+HOST_SRC  = src/host.cpp
+HOST_EXE  = host.exe
 
-############################## Help Section ##############################
+# Kernel source and output
+KERNEL_SRC  = src/krnl_hach.cpp
+KERNEL_NAME = hach_sequence
+XO_FILE     = $(KERNEL_NAME).xo
+XCLBIN      = $(KERNEL_NAME).$(TARGET).xclbin
+
+# Tools and flags
+VPP       = v++
+CXX       = g++
+CXXFLAGS  = -Wall -O2 -std=c++14 -I$(XILINX_XRT)/include
+LDFLAGS   = -L$(XILINX_XRT)/lib -lxrt_coreutil -pthread -lrt -lstdc++
+
+########################### Make Targets ###########################
+
+all: build
+
+build: $(XCLBIN) $(HOST_EXE)
+
+# Step 1: Compile kernel to XO
+$(XO_FILE): $(KERNEL_SRC)
+	$(VPP) -c -t $(TARGET) --platform $(PLATFORM) \
+		-k $(KERNEL_NAME) \
+		--kernel_frequency 300 \
+		-o $@ $<
+
+# Step 2: Link XO to XCLBIN
+$(XCLBIN): $(XO_FILE)
+	$(VPP) -l -t $(TARGET) --platform $(PLATFORM) \
+		--kernel_frequency 300 \
+		-o $@ $<
+
+# Build host only
+$(HOST_EXE): $(HOST_SRC)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+host: $(HOST_EXE)
+
+# Run application
+run: $(HOST_EXE) $(XCLBIN)
+	XCL_EMULATION_MODE=$(TARGET) ./$(HOST_EXE) $(XCLBIN)
+
+# Clean up
+clean:
+	rm -rf $(HOST_EXE) *.xo *.log *.json *.info .Xil _x
+
+cleanall: clean
+	rm -rf *.xclbin
+
 help:
-	$(ECHO) "Makefile Usage:"
-	$(ECHO) "  make all TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>"
-	$(ECHO) "      Command to generate the design for specified Target and Shell."
-	$(ECHO) ""
-	$(ECHO) "  make run TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>"
-	$(ECHO) "      Command to run application in emulation."
-	$(ECHO) ""
-	$(ECHO) "  make build TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>"
-	$(ECHO) "      Command to build xclbin application."
-	$(ECHO) ""
-	$(ECHO) "  make host"
-	$(ECHO) "      Command to build host application."
-	$(ECHO) ""
-	$(ECHO) "  make clean "
-	$(ECHO) "      Command to remove the generated non-hardware files."
-	$(ECHO) ""
-	$(ECHO) "  make cleanall"
-	$(ECHO) "      Command to remove all the generated files."
-	$(ECHO) ""
+	@echo "Makefile Usage:"
+	@echo "  make all TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>"
+	@echo "  make run TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>"
+	@echo "  make build   - build xclbin and host"
+	@echo "  make host    - build host only"
+	@echo "  make clean   - remove non-hardware files"
+	@echo "  make cleanall- remove all generated files"
