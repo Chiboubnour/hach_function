@@ -13,7 +13,7 @@ HOST_EXE  = host.exe
 
 # Kernel source and output
 KERNEL_SRC  = src/krnl_hach.cpp
-KERNEL_NAME = hach_sequence
+KERNEL_NAME = krnl_hach
 XO_FILE     = $(KERNEL_NAME).xo
 XCLBIN      = $(KERNEL_NAME).$(TARGET).xclbin
 
@@ -50,7 +50,12 @@ host: $(HOST_EXE)
 
 # Run application
 run: $(HOST_EXE) $(XCLBIN)
-	XCL_EMULATION_MODE=$(TARGET) ./$(HOST_EXE) $(XCLBIN)
+ifeq ($(TARGET),hw_emu)
+	XCL_EMULATION_MODE=hw_emu ./$(HOST_EXE) $(XCLBIN)
+else
+	./$(HOST_EXE) $(XCLBIN)
+endif
+
 
 # Clean up
 clean:
@@ -61,9 +66,9 @@ cleanall: clean
 
 help:
 	@echo "Makefile Usage:"
-	@echo "  make all TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>"
-	@echo "  make run TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>"
-	@echo "  make build   - build xclbin and host"
-	@echo "  make host    - build host only"
-	@echo "  make clean   - remove non-hardware files"
-	@echo "  make cleanall- remove all generated files"
+	@echo "  make all TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>   # build everything"
+	@echo "  make build TARGET=<hw_emu/hw> PLATFORM=<FPGA platform> # build kernel and host"
+	@echo "  make host                                              # build host only"
+	@echo "  make run TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>   # run the app"
+	@echo "  make clean                                             # remove build artifacts"
+	@echo "  make cleanall                                          # remove all generated files"
