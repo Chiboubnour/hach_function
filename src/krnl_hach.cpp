@@ -128,10 +128,10 @@ Sequence Packed -------->|                     |      |__|
  ) {
      #pragma HLS INTERFACE m_axi port=sequence offset=slave bundle=gmem_seq
      #pragma HLS INTERFACE m_axi port=tab_hash offset=slave bundle=gmem_out
-     #pragma HLS INTERFACE s_axilite port=n bundle=control
-     #pragma HLS INTERFACE s_axilite port=return bundle=control
+     #pragma HLS INTERFACE s_axilite port=n 
+     #pragma HLS INTERFACE s_axilite port=return 
      #pragma HLS DATAFLOW
- 
+
      const int n_smers = n - (S - 1);
  
      hls::stream<ap_uint<2>, DATA_DEPTH> stream_reader_to_smer;
