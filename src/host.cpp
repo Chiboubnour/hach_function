@@ -33,6 +33,18 @@ CASE: Data flow for krnl_hach kernel on FPGA with HBM banks
                                 +-----------+
 
 
++------------+       +---------------------+       +----------------+       +----------------+       +------------+
+|            |       |                     |       |                |       |                |       |            |
+|   HBM0     | ----> | Unpack Sequence     | ----> | Generate s-mers | ----> | Compute Hashes | ----> | Store Hashes|
+| (Input)    |       | (64b packed -> 2b)  |       | (Sliding window)|       | (Hash function)|       |            |
++------------+       +---------------------+       +----------------+       +----------------+       +------------+
+                                                                                                          |
+                                                                                                          v
+                                                                                                    +------------+
+                                                                                                    |   HBM1     |
+                                                                                                    | (Output)   |
+                                                                                                    +------------+
+
 */
 
 double run_krnl(xrtDeviceHandle device, xrt::kernel& krnl, int bank_assign[2], unsigned int n) {
