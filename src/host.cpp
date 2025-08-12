@@ -14,6 +14,27 @@
 #include <algorithm>
 
 
+
+/*
+CASE: Data flow for krnl_hach kernel on FPGA with HBM banks
+
++-----------+                   +-----------+
+|           |                   |           |
+|   HBM0    | ---- Sequence --->|           |
+|  (Input)  |                   |           |
++-----------+                   |           |
+                                |           |
++-----------+                   |           |
+|           |                   |           |
+|   HBM1    | <--- Hashes ------|   KERNEL  |
+|  (Output) |                   |           |
++-----------+                   |           |
+                                |           |
+                                +-----------+
+
+
+*/
+
 double run_krnl(xrtDeviceHandle device, xrt::kernel& krnl, int bank_assign[2], unsigned int n) {
     size_t input_size_bytes = ((n + 7) / 8) * sizeof(uint64_t); // packed sequence size
     size_t n_smers = n - 27; // S=28, so n_smers = n-(S-1)
