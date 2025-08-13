@@ -51,11 +51,10 @@ host: $(HOST_EXE)
 # Run application
 run: $(HOST_EXE) $(XCLBIN)
 ifeq ($(TARGET),hw_emu)
-	XCL_EMULATION_MODE=hw_emu ./$(HOST_EXE) $(XCLBIN)
+	XCL_EMULATION_MODE=hw_emu ./$(HOST_EXE) $(XCLBIN) 0
 else
-	./$(HOST_EXE) $(XCLBIN)
+	./$(HOST_EXE) $(XCLBIN) 0
 endif
-
 
 # Clean up
 clean:
