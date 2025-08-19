@@ -76,7 +76,6 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
     for (size_t i = 0; i < packed_seq.size(); i++)
         seq_map[i] = packed_seq[i];
 
-    // Zéro le buffer de sortie
     std::memset(hash_map, 0, output_size_bytes);
 
     std::cout << "Synchronisation buffer entrée vers device...\n";
@@ -91,11 +90,6 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
     bo_hash.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
 
     std::chrono::duration<double> kernel_time = kernel_end - kernel_start;
-
-    // Afficher premiers hash
-    std::cout << "Premiers 10 hash générés:\n";
-    for (size_t i = 0; i < std::min<size_t>(10, n_smers); i++)
-        std::cout << std::hex << hash_map[i] << std::dec << std::endl;
 
     return kernel_time.count();
 }
@@ -117,33 +111,39 @@ int main(int argc, char* argv[]) {
 
     auto krnl = xrt::kernel(device, uuid, "krnl_hach");
 
-    // Génération d'une séquence de 100 bases alternées ACGT
-    const unsigned int n = 100;
-    std::vector<uint8_t> sequence_bytes(n);
+    int bank_assign[2] = {0, 1}; // banques HBM pour entrée et sortie
     const char bases[4] = {'A','C','G','T'};
-    for (unsigned int i = 0; i < n; i++)
-        sequence_bytes[i] = bases[i % 4];
+    std::vector<size_t> lengths = {64, 128, 256, 512, 1024};
 
-    // Packager la séquence dans uint64_t, 8 octets ASCII par mot (8 bases/mot)
-    size_t n_words = (n + 7) / 8; // 8 bases par uint64_t
-    std::vector<uint64_t> packed_seq(n_words, 0);
+    for (size_t n : lengths) {
+        std::cout << "\n=== Test avec n=" << n << " bases ===" << std::endl;
 
-    for (size_t i = 0; i < n; i++) {
-        size_t word_idx = i / 8;
-        size_t shift = 8 * (i % 8);
-        packed_seq[word_idx] |= static_cast<uint64_t>(sequence_bytes[i]) << shift;
+        // Générer une séquence alternée ACGT de longueur n
+        std::vector<uint8_t> sequence_bytes(n);
+        for (size_t i = 0; i < n; i++)
+            sequence_bytes[i] = bases[i % 4];
+
+        // Packager la séquence dans uint64_t, 8 octets ASCII par mot (8 bases/mot)
+        size_t n_words = (n + 7) / 8; // 8 bases par uint64_t
+        std::vector<uint64_t> packed_seq(n_words, 0);
+
+        for (size_t i = 0; i < n; i++) {
+            size_t word_idx = i / 8;
+            size_t shift = 8 * (i % 8);
+            packed_seq[word_idx] |= static_cast<uint64_t>(sequence_bytes[i]) << shift;
+        }
+
+        double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, packed_seq, n);
+
+        size_t n_smers = (n >= 28) ? (n - 27) : 0;
+        double total_bytes = (packed_seq.size() * sizeof(uint64_t)) + (n_smers * sizeof(uint64_t));
+        double total_gb = total_bytes / 1e9;
+
+        std::cout << "Temps d'exécution du kernel : " << kernel_time_in_sec << " s\n";
+        std::cout << "Consommation : " << total_gb << " GB\n";
     }
 
-    int bank_assign[2] = {0, 1}; // banques HBM pour entrée et sortie
-    double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, packed_seq, n);
-
-    size_t n_smers = n - 27;
-    double total_bytes = (packed_seq.size() + n_smers) * sizeof(uint64_t);
-    double throughput = total_bytes / kernel_time_in_sec / 1e9; // GB/s
-
-    std::cout << "Temps d'exécution du kernel : " << kernel_time_in_sec << " s\n";
-    std::cout << "Débit : " << throughput << " GB/s\n";
-    std::cout << "Test terminé avec succès." << std::endl;
+    std::cout << "\nTests terminés avec succès." << std::endl;
 
     return 0;
 }
