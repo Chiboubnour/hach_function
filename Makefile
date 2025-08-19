@@ -40,6 +40,7 @@ $(XO_FILE): $(KERNEL_SRC)
 $(XCLBIN): $(XO_FILE)
 	$(VPP) -l -t $(TARGET) --platform $(PLATFORM) \
 		--kernel_frequency 300 \
+		--config krnl_hach.cfg \
 		-o $@ $<
 
 # Build host only
