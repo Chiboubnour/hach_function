@@ -1,4 +1,4 @@
-# Résultats d'exécution
+# Résultats d'exécution pour n=100
 
 ## 1. Exécution sur matériel réel (FPGA U280)
 
