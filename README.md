@@ -1,8 +1,5 @@
 # Résultats d'exécution
 
-## 1. Exécution sur matériel réel (FPGA U280)
-
-```bash
 make run TARGET=hw PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1
 ===> Premiers 10 hash générés:
 943af65c920be3
