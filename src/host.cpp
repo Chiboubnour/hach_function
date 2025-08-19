@@ -124,14 +124,14 @@ int main(int argc, char* argv[]) {
     for (unsigned int i = 0; i < n; i++)
         sequence_bytes[i] = bases[i % 4];
 
-    // Packager la séquence dans uint64_t, 2 bits par base
-    size_t n_words = (n + 31) / 32; // 32 bases par uint64_t
+    // Packager la séquence dans uint64_t, 8 octets ASCII par mot (8 bases/mot)
+    size_t n_words = (n + 7) / 8; // 8 bases par uint64_t
     std::vector<uint64_t> packed_seq(n_words, 0);
 
     for (size_t i = 0; i < n; i++) {
-        size_t word_idx = i / 32;
-        size_t shift = 2 * (i % 32);
-        packed_seq[word_idx] |= nucl_encode(sequence_bytes[i]) << shift;
+        size_t word_idx = i / 8;
+        size_t shift = 8 * (i % 8);
+        packed_seq[word_idx] |= static_cast<uint64_t>(sequence_bytes[i]) << shift;
     }
 
     int bank_assign[2] = {0, 1}; // banques HBM pour entrée et sortie
