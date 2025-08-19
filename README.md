@@ -1,6 +1,6 @@
 # Résultats d'exécution pour n=100
 
-## 1. make run TARGET=hw PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1
+make run TARGET=hw PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1
 
 ```bash
 ===> Premiers 10 hash générés:
@@ -18,7 +18,7 @@ Temps d'exécution du kernel : 0.000110065 s
 Débit : 0.00625085 GB/s
 Test terminé avec succès.
 
-## 2. make run TARGET=hw_emu PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1
+make run TARGET=hw_emu PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1
 ===> Premiers 10 hash générés:
 943af65c920be3
 a16b3488e8b1bd
