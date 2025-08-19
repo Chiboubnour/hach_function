@@ -18,6 +18,8 @@ a16b3488e8b1bd
 Temps d'exécution du kernel : 0.000110065 s
 Débit : 0.00625085 GB/s
 Test terminé avec succès.
+
+```bash
 # Exécution en émulation matérielle
 make run TARGET=hw_emu PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1
 ===> Premiers 10 hash générés:
