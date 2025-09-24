@@ -109,8 +109,8 @@ int main(int argc, char* argv[]) {
     int bank_assign[2] = {0, 1}; // banques HBM pour entrée et sortie
     const char bases[4] = {'A','C','G','T'};
 
-    // ====  n = 64 ====
-    size_t n = 64;
+    // ====  n = 128 ====
+    size_t n = 128;
     std::cout << "\n=== Test avec n=" << n << " bases ===" << std::endl;
 
     std::vector<uint8_t> sequence_bytes(n);
