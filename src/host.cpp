@@ -106,11 +106,11 @@ int main(int argc, char* argv[]) {
 
     auto krnl = xrt::kernel(device, uuid, "krnl_hach");
 
-    int bank_assign[2] = {0, 1}; // banques HBM pour entrée et sortie
+    int bank_assign[2] = {0, 1};
     const char bases[4] = {'A','C','G','T'};
 
-    // ====  n = 128 ====
-    size_t n = 128;
+    // ====  n = 256 ====
+    size_t n = 256;
     std::cout << "\n=== Test avec n=" << n << " bases ===" << std::endl;
 
     std::vector<uint8_t> sequence_bytes(n);
