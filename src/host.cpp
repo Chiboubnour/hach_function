@@ -109,16 +109,16 @@ int main(int argc, char* argv[]) {
     int bank_assign[2] = {0, 1};
     const char bases[4] = {'A','C','G','T'};
 
-    // ====  n = 1024 ====
-    size_t n = 1024;
+    // ====  n = 512 ====
+    size_t n = 512;
     std::cout << "\n=== Test avec n=" << n << " bases ===" << std::endl;
 
     std::vector<uint8_t> sequence_bytes(n);
     for (size_t i = 0; i < n; i++)
         sequence_bytes[i] = bases[i % 4];
 
-    //  8 octets ASCII par mot (8 bases/mot)
-    size_t n_words = (n + 7) / 8; // 8 bases par uint64_t
+    // 8 bases par uint64_t
+    size_t n_words = (n + 7) / 8;
     std::vector<uint64_t> packed_seq(n_words, 0);
 
     for (size_t i = 0; i < n; i++) {
@@ -127,16 +127,20 @@ int main(int argc, char* argv[]) {
         packed_seq[word_idx] |= static_cast<uint64_t>(sequence_bytes[i]) << shift;
     }
 
+    // Exécution kernel
     double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, packed_seq, n);
 
+    // Nombre de smers (S=28)
     size_t n_smers = (n >= 28) ? (n - 27) : 0;
-    double total_bytes = (packed_seq.size() * sizeof(uint64_t)) + (n_smers * sizeof(uint64_t));
-    double total_gb = total_bytes / 1e9;
+
+    // Temps par smer
+    double time_per_smer_sec = (n_smers > 0) ? (kernel_time_in_sec / n_smers) : 0.0;
+    double time_per_smer_ns = time_per_smer_sec * 1e9;
 
     std::cout << "Temps d'exécution du kernel : " << kernel_time_in_sec << " s\n";
-    std::cout << "Consommation : " << total_gb << " GB\n";
+    std::cout << "Temps moyen par s-mer (S=28) : " 
+              << time_per_smer_ns << " ns\n";
 
     std::cout << "\nTest terminé avec succès." << std::endl;
-
     return 0;
 }
