@@ -109,8 +109,8 @@ int main(int argc, char* argv[]) {
     int bank_assign[2] = {0, 1};
     const char bases[4] = {'A','C','G','T'};
 
-    // ====  n = 512 ====
-    size_t n = 512;
+    // ====  n = 64 ====
+    size_t n = 64;
     std::cout << "\n=== Test avec n=" << n << " bases ===" << std::endl;
 
     std::vector<uint8_t> sequence_bytes(n);
@@ -127,13 +127,10 @@ int main(int argc, char* argv[]) {
         packed_seq[word_idx] |= static_cast<uint64_t>(sequence_bytes[i]) << shift;
     }
 
-    // Exécution kernel
     double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, packed_seq, n);
 
-    // Nombre de smers (S=28)
     size_t n_smers = (n >= 28) ? (n - 27) : 0;
 
-    // Temps par smer
     double time_per_smer_sec = (n_smers > 0) ? (kernel_time_in_sec / n_smers) : 0.0;
     double time_per_smer_ns = time_per_smer_sec * 1e9;
 
