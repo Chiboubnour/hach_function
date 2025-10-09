@@ -1,11 +1,8 @@
 SHELL := /bin/bash
-MK_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-PWD      = $(shell readlink -f .)
 
 ######################## Project Variables ########################
 TARGET    ?= hw
 PLATFORM  ?= xilinx_u280_gen3x16_xdma_1_202211_1
-HOST_ARCH := x86
 
 # Host source and executable
 HOST_SRC  = src/host.cpp
@@ -65,7 +62,10 @@ cleanall: clean
 	rm -rf *.xclbin
 
 help:
-	@echo "Makefile Usage:"
+	@echo "Hash Computation - 512-bit + 8x Parallel"
+	@echo "Expected performance: 8 hashes per clock cycle = 2.4 billion hashes/second @ 300MHz"
+	@echo ""
+	@echo "Usage:"
 	@echo "  make all TARGET=<hw_emu/hw> PLATFORM=<FPGA platform>   # build everything"
 	@echo "  make build TARGET=<hw_emu/hw> PLATFORM=<FPGA platform> # build kernel and host"
 	@echo "  make host                                              # build host only"
