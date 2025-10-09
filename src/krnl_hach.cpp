@@ -1,9 +1,9 @@
 /********************************************************************************************
 _______________________
-|                       |<----- Sequence Input (packed 64 bits words)
-|     unpack_sequence    |       (N * 64 bits, N = (sequence_length+7)/8)
+|                       |<----- Sequence Input (packed 512 bits words)
+|     unpack_sequence    |       (N * 512 bits, N = (sequence_length+63)/64)
 |_______________________|----->|  |
- ______________________       |  | stream1: 2 bits/base, débit de N*8 bases
+ ______________________       |  | stream1: 2 bits/base, débit de N*64 bases
 Sequence Packed -------->|                     |      |__|
    |   generate_smers    |        |
    |_____________________|------->|  |
@@ -14,17 +14,21 @@ Sequence Packed -------->|                     |      |__|
  ______________________       __|  |
 |                      |<-----|   |
 |    store_hashes      |         |
-|______________________|-------> Output Hash Array (64 bits * (N - s + 1))
+|______________________|-------> Output Hash Array (512 bits * ((N - s + 1) + 7)/8)
 
+ *  OPTIMIZED VERSION: 8 PARALLEL PIPELINES FOR 8 HASHES PER CLOCK CYCLE
  *  *****************************************************************************************/
 
  #include "ap_int.h"
  #include "hls_stream.h"
  
- #define S 28
- #define SMER_SIZE (2 * S)
- #define DATA_DEPTH 1024
- #define MEM_UNIT 64
+#define S 28
+#define SMER_SIZE (2 * S)
+#define DATA_DEPTH 1024
+#define MEM_UNIT 64
+#define PARALLEL_PIPES 8
+#define INPUT_WIDTH 512
+#define OUTPUT_WIDTH 512
  
  inline ap_uint<2> nucl_encode(ap_uint<8> nucl) {
      #pragma HLS INLINE
@@ -54,27 +58,27 @@ Sequence Packed -------->|                     |      |__|
      return key;
  }
  
- void unpack_sequence_stream_v2(
-     const ap_uint<64>* packed_sequence,
-     hls::stream<ap_uint<2>>& sequence_stream,
-     int n
- ) {
-     int word_count = (n + 7) / 8;
- 
-     for (int i = 0; i < word_count; ++i) {
-         ap_uint<64> word = packed_sequence[i];
- 
-         for (int j = 0; j < 8; ++j) {
-             #pragma HLS PIPELINE II=1
-             int idx = i * 8 + j;
-             if (idx < n) {
-                 ap_uint<8> c = (word >> (8 * j));
-                 ap_uint<2> nucl = nucl_encode(c);
-                 sequence_stream.write(nucl);
-             }
-         }
-     }
- }
+void unpack_sequence_stream_512bit(
+    const ap_uint<512>* packed_sequence,
+    hls::stream<ap_uint<2>>& sequence_stream,
+    int n
+) {
+    int word_count = (n + 63) / 64; // 64 bases per 512-bit word
+
+    for (int i = 0; i < word_count; ++i) {
+        ap_uint<512> word = packed_sequence[i];
+
+        for (int j = 0; j < 64; ++j) {
+            #pragma HLS PIPELINE II=1
+            int idx = i * 64 + j;
+            if (idx < n) {
+                ap_uint<8> c = (word >> (8 * j)) & 0xFF;
+                ap_uint<2> nucl = nucl_encode(c);
+                sequence_stream.write(nucl);
+            }
+        }
+    }
+}
  
  void thread_smer(
      hls::stream<ap_uint<2>>& stream_i,
@@ -94,54 +98,108 @@ Sequence Packed -------->|                     |      |__|
      }
  }
  
- void thread_hash(
-     hls::stream<ap_uint<64>>& stream_i,
-     hls::stream<ap_uint<64>>& stream_o,
-     int n_smers
- ) {
-     const ap_uint<64> mask = mask_right(SMER_SIZE);
- 
-     for (int i = 0; i < n_smers; i++) {
-         #pragma HLS PIPELINE II=1
-         ap_uint<64> smer = stream_i.read();
-         ap_uint<64> hash = bfc_hash_64(smer, mask);
-         stream_o.write(hash);
-     }
- }
- 
- void thread_store(
-     hls::stream<ap_uint<64>>& stream_i,
-     ap_uint<64>* tab_hash,
-     int n_smers
- ) {
-     for (int i = 0; i < n_smers; i++) {
-         #pragma HLS PIPELINE II=1
-         tab_hash[i] = stream_i.read();
-     }
- }
- 
- extern "C" {
- void krnl_hach(
-     const ap_uint<64>* sequence,
-     const int n,
-     ap_uint<64>* tab_hash
- ) {
-     #pragma HLS INTERFACE m_axi port=sequence offset=slave bundle=gmem_seq
-     #pragma HLS INTERFACE m_axi port=tab_hash offset=slave bundle=gmem_out
-     #pragma HLS INTERFACE s_axilite port=n 
-     #pragma HLS INTERFACE s_axilite port=return 
-     #pragma HLS DATAFLOW
+void thread_hash(
+    hls::stream<ap_uint<64>>& stream_i,
+    hls::stream<ap_uint<64>>& stream_o,
+    int n_smers
+) {
+    const ap_uint<64> mask = mask_right(SMER_SIZE);
 
-     const int n_smers = n - (S - 1);
+    for (int i = 0; i < n_smers; i++) {
+        #pragma HLS PIPELINE II=1
+        ap_uint<64> smer = stream_i.read();
+        ap_uint<64> hash = bfc_hash_64(smer, mask);
+        stream_o.write(hash);
+    }
+}
+
+// Version parallèle qui traite 8 s-mers simultanément
+void thread_hash_parallel_8x(
+    hls::stream<ap_uint<64>>& stream_i,
+    hls::stream<ap_uint<64>>& stream_o,
+    int n_smers
+) {
+    const ap_uint<64> mask = mask_right(SMER_SIZE);
+    int processed = 0;
+
+    while (processed < n_smers) {
+        #pragma HLS PIPELINE II=1
+        
+        // Traiter jusqu'à 8 s-mers en parallèle
+        ap_uint<64> hashes[PARALLEL_PIPES];
+        #pragma HLS ARRAY_PARTITION variable=hashes complete
+        
+        for (int j = 0; j < PARALLEL_PIPES && (processed + j) < n_smers; j++) {
+            #pragma HLS UNROLL
+            ap_uint<64> smer = stream_i.read();
+            hashes[j] = bfc_hash_64(smer, mask);
+        }
+        
+        // Écrire les hashs dans l'ordre
+        int hashes_to_write = (n_smers - processed < PARALLEL_PIPES) ? 
+                              (n_smers - processed) : PARALLEL_PIPES;
+                              
+        for (int j = 0; j < hashes_to_write; j++) {
+            #pragma HLS UNROLL
+            stream_o.write(hashes[j]);
+        }
+        
+        processed += hashes_to_write;
+    }
+}
  
-     hls::stream<ap_uint<2>, DATA_DEPTH> stream_reader_to_smer;
-     hls::stream<ap_uint<64>, DATA_DEPTH> stream_smer_to_hash;
-     hls::stream<ap_uint<64>, DATA_DEPTH> stream_hash_to_store;
+void thread_store_512bit(
+    hls::stream<ap_uint<64>>& stream_i,
+    ap_uint<512>* tab_hash,
+    int n_smers
+) {
+    int output_words = (n_smers + 7) / 8; // 8 hashes per 512-bit word
+    
+    for (int word_idx = 0; word_idx < output_words; word_idx++) {
+        #pragma HLS PIPELINE II=1
+        ap_uint<512> output_word = 0;
+        
+        for (int hash_idx = 0; hash_idx < 8; hash_idx++) {
+            #pragma HLS UNROLL
+            int global_hash_idx = word_idx * 8 + hash_idx;
+            if (global_hash_idx < n_smers) {
+                ap_uint<64> hash_value = stream_i.read();
+                output_word |= (ap_uint<512>(hash_value) << (hash_idx * 64));
+            }
+        }
+        tab_hash[word_idx] = output_word;
+    }
+}
  
-     unpack_sequence_stream_v2(sequence, stream_reader_to_smer, n);
-     thread_smer(stream_reader_to_smer, stream_smer_to_hash, n);
-     thread_hash(stream_smer_to_hash, stream_hash_to_store, n_smers);
-     thread_store(stream_hash_to_store, tab_hash, n_smers);
- }
- }
+extern "C" {
+void krnl_hach(
+    const ap_uint<512>* sequence,
+    const int n,
+    ap_uint<512>* tab_hash
+) {
+    #pragma HLS INTERFACE m_axi port=sequence offset=slave bundle=gmem_seq
+    #pragma HLS INTERFACE m_axi port=tab_hash offset=slave bundle=gmem_out
+    #pragma HLS INTERFACE s_axilite port=n 
+    #pragma HLS INTERFACE s_axilite port=return 
+    #pragma HLS DATAFLOW
+
+    const int n_smers = n - (S - 1);
+
+    // Streams principaux
+    hls::stream<ap_uint<2>, DATA_DEPTH> stream_reader_to_smer;
+    hls::stream<ap_uint<64>, DATA_DEPTH> stream_smer_to_hash;
+    hls::stream<ap_uint<64>, DATA_DEPTH> stream_hash_to_store;
+
+    // Décompression de la séquence 512 bits
+    unpack_sequence_stream_512bit(sequence, stream_reader_to_smer, n);
+    
+    // Pipeline principal avec traitement parallèle des hashs
+    thread_smer(stream_reader_to_smer, stream_smer_to_hash, n);
+    thread_hash_parallel_8x(stream_smer_to_hash, stream_hash_to_store, n_smers);
+    
+    // Stockage optimisé 512 bits
+    thread_store_512bit(stream_hash_to_store, tab_hash, n_smers);
+}
+
+}
  
