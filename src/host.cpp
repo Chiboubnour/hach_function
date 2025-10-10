@@ -50,9 +50,9 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
     size_t n_words_512bit = (n + 63) / 64; // 64 bases par mot 512 bits
     size_t input_size_bytes = n_words_512bit * 64; // 64 bytes par mot 512 bits
     
-    size_t n_smers = (n >= 28) ? (n - 27) : 0; // S=28
+    size_t n_smers = (n >= 28) ? (n - 27) : 0; 
     size_t output_words_512bit = (n_smers + 7) / 8; // 8 hashs par mot 512 bits
-    size_t output_size_bytes = output_words_512bit * 64; // 64 bytes par mot 512 bits
+    size_t output_size_bytes = output_words_512bit * 64; 
     
     auto bo_seq  = xrt::bo(device, input_size_bytes, bank_assign[0]);
     auto bo_hash = xrt::bo(device, output_size_bytes, bank_assign[1]);
@@ -60,7 +60,6 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
     auto seq_map  = bo_seq.map<uint64_t*>();
     auto hash_map = bo_hash.map<uint64_t*>();
 
-    // Packer les données en mots de 512 bits
     for (size_t word_idx = 0; word_idx < n_words_512bit; word_idx++) {
         for (size_t base_idx = 0; base_idx < 64; base_idx++) {
             size_t global_base_idx = word_idx * 64 + base_idx;
@@ -87,7 +86,6 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
     return kernel_time.count();
 }
 
-// Fonction pour générer une séquence ADN aléatoire
 std::vector<uint8_t> generate_random_dna_sequence(size_t length, uint32_t seed = 42) {
     std::mt19937 gen(seed);
     std::uniform_int_distribution<> dis(0, 3);
@@ -126,20 +124,12 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\n=== Génération de séquence ADN aléatoire ===" << std::endl;
     std::vector<uint8_t> sequence_bytes = generate_random_dna_sequence(n);
-    
-    // Afficher un échantillon de la séquence
-    std::cout << "Échantillon (premières 100 bases): ";
-    for (size_t i = 0; i < std::min(size_t(100), n); i++) {
-        std::cout << char(sequence_bytes[i]);
-    }
-    std::cout << "...\n";
 
     std::cout << "\n=== Traitement FPGA ===" << std::endl;
     double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, sequence_bytes, n);
 
     size_t n_smers = (n >= 28) ? (n - 27) : 0;
 
-    // Calculs de performance détaillés
     double time_per_smer_sec = (n_smers > 0) ? (kernel_time_in_sec / n_smers) : 0.0;
     double time_per_smer_ns = time_per_smer_sec * 1e9;
     double hashes_per_second = n_smers / kernel_time_in_sec;
@@ -147,13 +137,8 @@ int main(int argc, char* argv[]) {
     std::cout << "\n=== RÉSULTATS DE PERFORMANCE ===" << std::endl;
     std::cout << std::fixed << std::setprecision(6);
     std::cout << "Taille de séquence : " << n << " bases (" << n/1000000.0 << " millions)\n";
-    std::cout << "Nombre de s-mers générés : " << n_smers << " (" << n_smers/1000000.0 << " millions)\n";
     std::cout << "Temps d'exécution kernel : " << kernel_time_in_sec << " secondes\n";
     std::cout << "Temps moyen par s-mer : " << time_per_smer_ns << " ns\n";
-    std::cout << "Débit de calcul : " << hashes_per_second / 1e6 << " millions de hashs/seconde\n";
-    std::cout << "Débit théorique max (8 hashs/cycle @ 300MHz) : 2400 millions de hashs/seconde\n";
-    std::cout << "Efficacité de calcul : " << (hashes_per_second / 2.4e9) * 100 << "%\n";
-
     std::cout << "\nTest terminé avec succès." << std::endl;
     return 0;
 }
