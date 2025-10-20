@@ -46,7 +46,6 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
                 int bank_assign[2], const std::vector<uint8_t>& sequence_bytes,
                 size_t n) 
 {
-    // Calculer les tailles pour 512 bits
     size_t n_words_512bit = (n + 63) / 64; // 64 bases par mot 512 bits
     size_t input_size_bytes = n_words_512bit * 64; // 64 bytes par mot 512 bits
     
