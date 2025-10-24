@@ -44,7 +44,7 @@ inline uint64_t nucl_encode(char c) {
 
 double run_krnl(xrt::device& device, xrt::kernel& krnl,
                 int bank_assign[2], const std::vector<uint8_t>& sequence_bytes,
-                size_t n) 
+                size_t n, uint64_t& n_minimizers) 
 {
     size_t n_words_512bit = (n + 63) / 64; // 64 bases par mot 512 bits
     size_t input_size_bytes = n_words_512bit * 64; // 64 bytes par mot 512 bits
@@ -55,9 +55,11 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
     
     auto bo_seq  = xrt::bo(device, input_size_bytes, bank_assign[0]);
     auto bo_hash = xrt::bo(device, output_size_bytes, bank_assign[1]);
+    auto bo_nminizrs = xrt::bo(device, sizeof(uint64_t), bank_assign[1]); // Buffer pour nMinizrs
 
     auto seq_map  = bo_seq.map<uint64_t*>();
     auto hash_map = bo_hash.map<uint64_t*>();
+    auto nminizrs_map = bo_nminizrs.map<uint64_t*>();
 
     for (size_t word_idx = 0; word_idx < n_words_512bit; word_idx++) {
         for (size_t base_idx = 0; base_idx < 64; base_idx++) {
@@ -70,15 +72,20 @@ double run_krnl(xrt::device& device, xrt::kernel& krnl,
     }
 
     std::memset(hash_map, 0, output_size_bytes);
+    *nminizrs_map = 0; // Initialiser nMinizrs à 0
 
     bo_seq.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+    bo_nminizrs.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
     auto kernel_start = std::chrono::high_resolution_clock::now();
-    auto run = krnl(bo_seq, n, bo_hash);
+    auto run = krnl(bo_seq, bo_hash, n, bo_nminizrs); // Interface corrigée
     run.wait();
     auto kernel_end = std::chrono::high_resolution_clock::now();
 
     bo_hash.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+    bo_nminizrs.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+    n_minimizers = *nminizrs_map; // Récupérer le nombre de minimizers
 
     std::chrono::duration<double> kernel_time = kernel_end - kernel_start;
 
@@ -125,7 +132,8 @@ int main(int argc, char* argv[]) {
     std::vector<uint8_t> sequence_bytes = generate_random_dna_sequence(n);
 
     std::cout << "\n=== Traitement FPGA ===" << std::endl;
-    double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, sequence_bytes, n);
+    uint64_t n_minimizers = 0;
+    double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, sequence_bytes, n, n_minimizers);
 
     size_t n_smers = (n >= 28) ? (n - 27) : 0;
 
@@ -138,6 +146,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Taille de séquence : " << n << " bases (" << n/1000000.0 << " millions)\n";
     std::cout << "Temps d'exécution kernel : " << kernel_time_in_sec << " secondes\n";
     std::cout << "Temps moyen par s-mer : " << time_per_smer_ns << " ns\n";
+    std::cout << "Nombre de minimizers générés : " << n_minimizers << std::endl;
     std::cout << "\nTest terminé avec succès." << std::endl;
     return 0;
 }
