@@ -2,20 +2,6 @@
 
 Accélérateur FPGA optimisé pour le calcul de hash de séquences ADN sur Alveo U280.
 
-## Caractéristiques
-
-- **512 bits** de largeur de données (entrée/sortie)
-- **8 hachages par cycle d'horloge** (traitement parallèle)
-- **2.4 milliards de hashs/seconde** @ 300MHz (performance théorique)
-- **Mémoire HBM** pour haute bande passante
-- **Séquences aléatoires** jusqu'à plusieurs millions de bases
-
-## Architecture
-
-```
-Input (512-bit) → Unpack → Generate s-mers → Compute 8x Hashes → Store (512-bit)
-```
-
 ## Compilation
 
 ```bash
