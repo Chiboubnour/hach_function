@@ -275,14 +275,17 @@ void krnl_minimizer(
     ap_uint<64> n_bases,
     ap_uint<64>* nMinizrs
 ) {
-    #pragma HLS INTERFACE m_axi port=sequence offset=slave bundle=gmem_seq max_read_burst_length=1024 num_read_outstanding=64
-    #pragma HLS INTERFACE m_axi port=tab_hash offset=slave bundle=gmem_out max_write_burst_length=1024 num_write_outstanding=64
+    #pragma HLS INTERFACE m_axi port=sequence offset=slave bundle=gmem_seq max_read_burst_length=256  num_read_outstanding=64
+    #pragma HLS INTERFACE m_axi port=tab_hash offset=slave bundle=gmem_out max_write_burst_length=256 num_write_outstanding=64
     #pragma HLS INTERFACE s_axilite port=n_bases
     #pragma HLS INTERFACE s_axilite port=nMinizrs
     #pragma HLS INTERFACE s_axilite port=return
     #pragma HLS DATAFLOW
 
-    ap_uint<64> n_smers = (n_bases >= (ap_uint<64>)(S - 1)) ? (n_bases - (ap_uint<64>)(S - 1)) : (ap_uint<64>)0;
+    //ap_uint<64> n_smers = (n_bases >= (ap_uint<64>)(S - 1)) ? (n_bases - (ap_uint<64>)(S - 1)) : (ap_uint<64>)0;
+    ap_uint<64> n_smers = (n_bases >= (ap_uint<64>)(S - 1))
+    ? (ap_uint<64>)(n_bases - (ap_uint<64>)(S - 1))
+    : (ap_uint<64>)0;
 
     static hls::stream<ap_uint<2>, STREAM_DEPTH> seq_stream;
     static hls::stream<ap_uint<64>, STREAM_DEPTH> canon_stream;
