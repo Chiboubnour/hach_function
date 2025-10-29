@@ -29,7 +29,6 @@ OPTIMIZED VERSION: 512-bit data width with 8x parallel hash computation
                                 |           |
                                 +-----------+
 
-PERFORMANCE: 8 HASHES PER CLOCK CYCLE = 2.4 BILLION HASHES/SECOND @ 300MHz
 */
 
 inline uint64_t nucl_encode(char c) {
