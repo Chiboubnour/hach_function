@@ -5,12 +5,12 @@ TARGET    ?= hw
 PLATFORM  ?= xilinx_u280_gen3x16_xdma_1_202211_1
 
 # Host source and executable
-HOST_SRC  = src/host.cpp
-HOST_EXE  = host.exe
+HOST_SRC  = src/host_v3.cpp
+HOST_EXE  = host_v3.exe
 
 # Kernel source and output
-KERNEL_SRC  = src/krnl_hach.cpp
-KERNEL_NAME = krnl_hach
+KERNEL_SRC  = src/krnl_hach_v3.cpp
+KERNEL_NAME = krnl_hach_v3
 XO_FILE     = $(KERNEL_NAME).xo
 XCLBIN      = $(KERNEL_NAME).$(TARGET).xclbin
 
