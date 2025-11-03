@@ -14,7 +14,6 @@
 // =================================================================================
 inline ap_uint<64> bfc_hash_64_pipelined(ap_uint<64> k) {
     #pragma HLS INLINE
-    #pragma HLS PIPELINE II=1 
 
     const ap_uint<64> mask = (((ap_uint<64>)1 << SMER_SIZE) - 1);
 
@@ -43,27 +42,22 @@ void thread_smer_from_memory_512(
     ap_uint<64> n_smers_to_produce = n_bases - S + 1;
     uint64_t words_to_read = (n_bases + 255) / 256; // 256 bases per 512-bit word
 
-    // Boucle principale qui lit des mots de 512 bits
     WORD_LOOP:
     for (uint64_t i = 0; i < words_to_read; ++i) {
         #pragma HLS PIPELINE II=1
 
         ap_uint<INPUT_WIDTH> current_word = sequence[i];
 
-        // Combine le chevauchement du mot précédent avec le mot actuel
         ap_uint<INPUT_WIDTH + 2 * (S - 1)> processing_window;
         processing_window.range(INPUT_WIDTH - 1, 0) = current_word;
         processing_window.range(INPUT_WIDTH + 2 * (S - 1) - 1, INPUT_WIDTH) = overlap_buffer;
 
-        // Génère tous les S-mers possibles à partir de cette fenêtre en parallèle
         SMER_GEN_LOOP:
         for (int j = 0; j < 256; ++j) {
             #pragma HLS UNROLL
             
-            // Extrait le s-mer de la fenêtre de traitement
             ap_uint<SMER_SIZE> smer = processing_window.range(SMER_SIZE - 1 + (j * 2), j * 2);
             
-            // Calcul du complément inverse (Reverse Complement)
             ap_uint<SMER_SIZE> rev_comp = 0;
             for (int b = 0; b < S; ++b) {
                 #pragma HLS UNROLL
@@ -73,13 +67,11 @@ void thread_smer_from_memory_512(
 
             ap_uint<64> canon_smer = (smer < rev_comp) ? (ap_uint<64>)smer : (ap_uint<64>)rev_comp;
             
-            // N'écrit dans le flux que si le s-mer est valide
             if ((i * 256 + j) < n_smers_to_produce) {
                 stream_o.write(canon_smer);
             }
         }
 
-        // Met à jour le buffer de chevauchement pour la prochaine itération
         overlap_buffer = current_word.range(INPUT_WIDTH - 1, INPUT_WIDTH - 2 * (S - 1));
     }
 }
@@ -212,7 +204,7 @@ void thread_store_512bit(
 
 
 extern "C" {
-void krnl_minimizer_optimized(
+void Krnl_hach_v3(
     const ap_uint<INPUT_WIDTH>* sequence,
     ap_uint<OUTPUT_WIDTH>* tab_hash,
     ap_uint<64> n_bases,
@@ -225,7 +217,10 @@ void krnl_minimizer_optimized(
     #pragma HLS INTERFACE s_axilite port=return
     #pragma HLS DATAFLOW
 
-    ap_uint<64> n_smers = (n_bases >= S) ? (n_bases - S + 1) : (ap_uint<64>)0;
+    ap_uint<64> n_smers = (n_bases >= (ap_uint<64>)(S - 1))
+    ? (ap_uint<64>)(n_bases - (ap_uint<64>)(S - 1))
+    : (ap_uint<64>)0;
+
 
     static hls::stream<ap_uint<64>, STREAM_DEPTH> canon_stream;
     static hls::stream<ap_uint<64>, STREAM_DEPTH> hash_stream;
