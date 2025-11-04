@@ -9,8 +9,8 @@ HOST_SRC  = src/host_v3.cpp
 HOST_EXE  = host_v3.exe
 
 # Kernel source and output
-KERNEL_SRC  = src/krnl_hach_v3.cpp
-KERNEL_NAME = krnl_hach_v3
+KERNEL_SRC  = src/Krnl_hach_v3.cpp
+KERNEL_NAME = Krnl_hach_v3
 XO_FILE     = $(KERNEL_NAME).xo
 XCLBIN      = $(KERNEL_NAME).$(TARGET).xclbin
 
