@@ -101,7 +101,6 @@ inline ap_uint<64> hash_u64(ap_uint<64> key, ap_uint<64> mask) {
     return key;
 }
 
-<<<<<<< HEAD
 void thread_reader_v2(
     const ap_uint<512>* packed_sequence,
 =======
@@ -145,7 +144,6 @@ extern "C" {
 void Krnl_hach_v3(
     const ap_uint<INPUT_WIDTH>* sequence,
     ap_uint<OUTPUT_WIDTH>* tab_hash,
->>>>>>> 149120260dd00eb5aa85cea0a5afcf9f95bb590d
     ap_uint<64> n_bases,
     hls::stream< ap_uint<24> >& stream_o
 ) {
@@ -304,18 +302,15 @@ void minimizer(
     #pragma HLS INTERFACE mode=s_axilite port=return bundle=control
     #pragma HLS DATAFLOW
 
-<<<<<<< HEAD
     hls::stream< ap_uint<24>, DATA_DEPTH > fifo_1;
     hls::stream< ap_uint<SMERS_PER_CYCLE*3>, DATA_DEPTH > fifo_2;
     hls::stream< ap_uint<SMER_SIZE>, DATA_DEPTH > fifo_3;
     hls::stream< ap_uint<SMER_SIZE*SMERS_PER_CYCLE>, DATA_DEPTH > fifo_4;
     hls::stream< ap_uint<SMER_SIZE>, DATA_DEPTH > fifo_5;
-=======
     ap_uint<64> n_smers = (n_bases >= (ap_uint<64>)(S - 1))
     ? (ap_uint<64>)(n_bases - (ap_uint<64>)(S - 1))
     : (ap_uint<64>)0;
 
->>>>>>> 149120260dd00eb5aa85cea0a5afcf9f95bb590d
 
     thread_reader_v2(packed_sequence, n, fifo_1);
     thread_reader_pack(fifo_1, fifo_2);
