@@ -92,7 +92,12 @@ int main(int argc, char* argv[]) {
 
     auto device = xrt::device(device_idx);
     auto uuid = device.load_xclbin(xclbin);
+<<<<<<< HEAD
     auto krnl = xrt::kernel(device, uuid, "minimizer");
+=======
+    // Kernel name from Krnl_hach_v3.cpp
+    auto krnl = xrt::kernel(device, uuid, "Krnl_hach_v3");
+>>>>>>> 149120260dd00eb5aa85cea0a5afcf9f95bb590d
 
     int bank_assign[2] = {0, 1};
 
