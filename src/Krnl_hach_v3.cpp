@@ -5,6 +5,7 @@
 #define DATA_DEPTH 1024
 #define SMERS_PER_CYCLE 8
 
+<<<<<<< HEAD
 inline ap_uint<2> nucl_encode(char nucl) {
     switch (nucl) {
         case 'A': return 0;
@@ -12,6 +13,72 @@ inline ap_uint<2> nucl_encode(char nucl) {
         case 'G': return 2;
         case 'T': return 3;
         default : return 0;
+=======
+// =================================================================================
+// POINT D'ACTION 3 : Hachage pipeliné pour une fréquence (fmax) plus élevée
+// =================================================================================
+inline ap_uint<64> bfc_hash_64_pipelined(ap_uint<64> k) {
+    #pragma HLS INLINE
+
+    const ap_uint<64> mask = (((ap_uint<64>)1 << SMER_SIZE) - 1);
+
+    k = (~k + (k << 21));
+    k = k ^ (k >> 24);
+    k = ((k + (k << 3)) + (k << 8));
+    k = k ^ (k >> 14);
+    k = ((k + (k << 2)) + (k << 4));
+    k = k ^ (k >> 28);
+    k = (k + (k << 31));
+    return k & mask;
+}
+
+// =================================================================================
+// POINT D'ACTION 1 : Traitement direct depuis la mémoire 512-bit (Élimine le goulot d'étranglement)
+// =================================================================================
+void thread_smer_from_memory_512(
+    const ap_uint<INPUT_WIDTH>* sequence,
+    hls::stream<ap_uint<64>>& stream_o,
+    uint64_t n_bases
+) {
+    #pragma HLS INLINE off
+    if (n_bases < S) return;
+
+    ap_uint<2 * (S - 1)> overlap_buffer = 0;
+    ap_uint<64> n_smers_to_produce = n_bases - S + 1;
+    uint64_t words_to_read = (n_bases + 255) / 256; // 256 bases per 512-bit word
+
+    WORD_LOOP:
+    for (uint64_t i = 0; i < words_to_read; ++i) {
+        #pragma HLS PIPELINE II=1
+
+        ap_uint<INPUT_WIDTH> current_word = sequence[i];
+
+        ap_uint<INPUT_WIDTH + 2 * (S - 1)> processing_window;
+        processing_window.range(INPUT_WIDTH - 1, 0) = current_word;
+        processing_window.range(INPUT_WIDTH + 2 * (S - 1) - 1, INPUT_WIDTH) = overlap_buffer;
+
+        SMER_GEN_LOOP:
+        for (int j = 0; j < 256; ++j) {
+            #pragma HLS UNROLL
+            
+            ap_uint<SMER_SIZE> smer = processing_window.range(SMER_SIZE - 1 + (j * 2), j * 2);
+            
+            ap_uint<SMER_SIZE> rev_comp = 0;
+            for (int b = 0; b < S; ++b) {
+                #pragma HLS UNROLL
+                ap_uint<2> base = smer.range(2 * b + 1, 2 * b);
+                rev_comp.range(SMER_SIZE - 1 - (2 * b), SMER_SIZE - 2 - (2 * b)) = ~base;
+            }
+
+            ap_uint<64> canon_smer = (smer < rev_comp) ? (ap_uint<64>)smer : (ap_uint<64>)rev_comp;
+            
+            if ((i * 256 + j) < n_smers_to_produce) {
+                stream_o.write(canon_smer);
+            }
+        }
+
+        overlap_buffer = current_word.range(INPUT_WIDTH - 1, INPUT_WIDTH - 2 * (S - 1));
+>>>>>>> 149120260dd00eb5aa85cea0a5afcf9f95bb590d
     }
 }
 
@@ -34,8 +101,51 @@ inline ap_uint<64> hash_u64(ap_uint<64> key, ap_uint<64> mask) {
     return key;
 }
 
+<<<<<<< HEAD
 void thread_reader_v2(
     const ap_uint<512>* packed_sequence,
+=======
+
+void thread_store_512bit(
+    hls::stream<ap_uint<64>>& stream_i,
+    ap_uint<OUTPUT_WIDTH>* tab_hash,
+    ap_uint<64>* nMinizrs
+) {
+    #pragma HLS INLINE off
+    ap_uint<64> out_count = 0;
+    ap_uint<OUTPUT_WIDTH> out_word = 0;
+    int slot = 0;
+    uint64_t word_idx = 0;
+
+    STORE_LOOP:
+    while (true) {
+        #pragma HLS PIPELINE II=1
+        ap_uint<64> v = stream_i.read();
+        if (v == 0) break;
+
+        out_word.range((slot + 1) * 64 - 1, slot * 64) = v;
+        out_count++;
+        
+        if (slot == (OUTPUT_WIDTH / 64 - 1)) {
+            tab_hash[word_idx++] = out_word;
+            out_word = 0;
+            slot = 0;
+        } else {
+            slot++;
+        }
+    }
+    if (slot != 0) {
+        tab_hash[word_idx] = out_word;
+    }
+    *nMinizrs = out_count;
+}
+
+
+extern "C" {
+void Krnl_hach_v3(
+    const ap_uint<INPUT_WIDTH>* sequence,
+    ap_uint<OUTPUT_WIDTH>* tab_hash,
+>>>>>>> 149120260dd00eb5aa85cea0a5afcf9f95bb590d
     ap_uint<64> n_bases,
     hls::stream< ap_uint<24> >& stream_o
 ) {
@@ -194,11 +304,18 @@ void minimizer(
     #pragma HLS INTERFACE mode=s_axilite port=return bundle=control
     #pragma HLS DATAFLOW
 
+<<<<<<< HEAD
     hls::stream< ap_uint<24>, DATA_DEPTH > fifo_1;
     hls::stream< ap_uint<SMERS_PER_CYCLE*3>, DATA_DEPTH > fifo_2;
     hls::stream< ap_uint<SMER_SIZE>, DATA_DEPTH > fifo_3;
     hls::stream< ap_uint<SMER_SIZE*SMERS_PER_CYCLE>, DATA_DEPTH > fifo_4;
     hls::stream< ap_uint<SMER_SIZE>, DATA_DEPTH > fifo_5;
+=======
+    ap_uint<64> n_smers = (n_bases >= (ap_uint<64>)(S - 1))
+    ? (ap_uint<64>)(n_bases - (ap_uint<64>)(S - 1))
+    : (ap_uint<64>)0;
+
+>>>>>>> 149120260dd00eb5aa85cea0a5afcf9f95bb590d
 
     thread_reader_v2(packed_sequence, n, fifo_1);
     thread_reader_pack(fifo_1, fifo_2);
