@@ -113,12 +113,7 @@ int main(int argc, char* argv[]) {
     std::string binaryFile = argv[1];
     int device_index = std::stoi(argv[2]);
     
-    // Taille de séquence par défaut : 1 million de bases
     size_t n = (argc > 3) ? std::stoull(argv[3]) : 1000000;
-
-    std::cout << "=== HASH COMPUTATION - 512-bit + 8x Parallel ===\n";
-    std::cout << "Target: " << n << " bases (" << n/1000000.0 << " million bases)\n";
-    std::cout << "Ouverture du device " << device_index << std::endl;
     auto device = xrt::device(device_index);
 
     auto uuid = device.load_xclbin(binaryFile);
@@ -127,10 +122,8 @@ int main(int argc, char* argv[]) {
 
     int bank_assign[2] = {0, 1};
 
-    std::cout << "\n=== Génération de séquence ADN aléatoire ===" << std::endl;
     std::vector<uint8_t> sequence_bytes = generate_random_dna_sequence(n);
 
-    std::cout << "\n=== Traitement FPGA ===" << std::endl;
     uint64_t n_minimizers = 0;
     double kernel_time_in_sec = run_krnl(device, krnl, bank_assign, sequence_bytes, n, n_minimizers);
 
@@ -145,7 +138,6 @@ int main(int argc, char* argv[]) {
     std::cout << "Taille de séquence : " << n << " bases (" << n/1000000.0 << " millions)\n";
     std::cout << "Temps d'exécution kernel : " << kernel_time_in_sec << " secondes\n";
     std::cout << "Temps moyen par s-mer : " << time_per_smer_ns << " ns\n";
-    std::cout << "Nombre de minimizers générés : " << n_minimizers << std::endl;
     std::cout << "\nTest terminé avec succès." << std::endl;
     return 0;
 }
